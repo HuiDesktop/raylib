@@ -22,6 +22,7 @@ endif()
 
 # Used as public API to be included into other projects
 set(raylib_public_headers
+    luaopt.h
     raylib.h
     rlgl.h
     raymath.h
@@ -29,6 +30,7 @@ set(raylib_public_headers
 
 # Sources to be compiled
 set(raylib_sources
+    luaopt.c
     rcore.c
     rmodels.c
     rshapes.c
