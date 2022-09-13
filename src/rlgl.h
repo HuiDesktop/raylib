@@ -413,7 +413,8 @@ typedef enum {
     RL_BLEND_ADD_COLORS,               // Blend textures adding colors (alternative)
     RL_BLEND_SUBTRACT_COLORS,          // Blend textures subtracting colors (alternative)
     RL_BLEND_ALPHA_PREMULTIPLY,        // Blend premultiplied textures considering alpha
-    RL_BLEND_CUSTOM_SEPARATE           // Belnd textures using custom src/dst factors separately (use SetBlendModeCustomSeparate())
+    RL_BLEND_CUSTOM,                   // Blend textures using custom src/dst factors (use SetBlendModeCustom())
+    RL_BLEND_CUSTOM_SEPARATE           // Blend textures using custom src/dst factors separately (use SetBlendModeCustomSeparate())
 } rlBlendMode;
 
 // Shader location point type
