@@ -434,7 +434,7 @@ typedef enum {
     RL_BLEND_ADD_COLORS,               // Blend textures adding colors (alternative)
     RL_BLEND_SUBTRACT_COLORS,          // Blend textures subtracting colors (alternative)
     RL_BLEND_ALPHA_PREMULTIPLY,        // Blend premultiplied textures considering alpha
-    RL_BLEND_CUSTOM                    // Blend textures using custom src/dst factors (use rlSetBlendFactors())
+    RL_BLEND_CUSTOM_SEPARATE           // Belnd textures using custom src/dst factors separately (use SetBlendModeCustomSeparate())
 } rlBlendMode;
 
 // Shader location point type
@@ -588,6 +588,7 @@ RLAPI void rlClearColor(unsigned char r, unsigned char g, unsigned char b, unsig
 RLAPI void rlClearScreenBuffers(void);                  // Clear used screen buffers (color and depth)
 RLAPI void rlCheckErrors(void);                         // Check and log OpenGL error codes
 RLAPI void rlSetBlendMode(int mode);                    // Set blending mode
+RLAPI void rlSetBlendFactorsSeparate(int srgb, int drgb, int salpha, int dalpha, int ergb, int ealpha); // Set blending mode factors and equations separately (using OpenGL factors)
 RLAPI void rlSetBlendFactors(int glSrcFactor, int glDstFactor, int glEquation); // Set blending mode factor and equation (using OpenGL factors)
 
 //------------------------------------------------------------------------------------
@@ -626,6 +627,7 @@ RLAPI unsigned int rlLoadVertexBuffer(const void *buffer, int size, bool dynamic
 RLAPI unsigned int rlLoadVertexBufferElement(const void *buffer, int size, bool dynamic);     // Load a new attributes element buffer
 RLAPI void rlUpdateVertexBuffer(unsigned int bufferId, const void *data, int dataSize, int offset);     // Update GPU buffer with new data
 RLAPI void rlUpdateVertexBufferElements(unsigned int id, const void *data, int dataSize, int offset);   // Update vertex buffer elements with new data
+RLAPI void rlUpdateVertexBufferElements(unsigned int id, const void* data, int dataSize, int offset);   // Update vertex buffer elements with new data
 RLAPI void rlUnloadVertexArray(unsigned int vaoId);
 RLAPI void rlUnloadVertexBuffer(unsigned int vboId);
 RLAPI void rlSetVertexAttribute(unsigned int index, int compSize, int type, bool normalized, int stride, const void *pointer);
@@ -647,6 +649,7 @@ RLAPI void rlUnloadTexture(unsigned int id);                              // Unl
 RLAPI void rlGenTextureMipmaps(unsigned int id, int width, int height, int format, int *mipmaps); // Generate mipmap data for selected texture
 RLAPI void *rlReadTexturePixels(unsigned int id, int width, int height, int format);              // Read texture pixel data
 RLAPI unsigned char *rlReadScreenPixels(int width, int height);           // Read screen pixel data (color buffer)
+RLAPI unsigned char rlReadScreenPixelAlpha(int x, int y, int height);
 
 // Framebuffer management (fbo)
 RLAPI unsigned int rlLoadFramebuffer(int width, int height);              // Load an empty framebuffer
@@ -663,6 +666,7 @@ RLAPI int rlGetLocationUniform(unsigned int shaderId, const char *uniformName); 
 RLAPI int rlGetLocationAttrib(unsigned int shaderId, const char *attribName);   // Get shader location attribute
 RLAPI void rlSetUniform(int locIndex, const void *value, int uniformType, int count);   // Set shader value uniform
 RLAPI void rlSetUniformMatrix(int locIndex, Matrix mat);                        // Set shader value matrix
+RLAPI void rlSetUniformMatrixDirectly(int locIndex, float* mat);                // Set shader value matrix directly
 RLAPI void rlSetUniformSampler(int locIndex, unsigned int textureId);           // Set shader value sampler
 RLAPI void rlSetShader(unsigned int id, int *locs);                             // Set shader currently active (id and locations)
 
@@ -928,6 +932,13 @@ typedef struct rlglData {
         int glBlendSrcFactor;               // Blending source factor
         int glBlendDstFactor;               // Blending destination factor
         int glBlendEquation;                // Blending equation
+        int glBlendSrcFactorRGB;            // Blending source RGB factor
+        int glBlendDestFactorRGB;           // Blending destination RGB factor
+        int glBlendSrcFactorAlpha;          // Blending source alpha factor
+        int glBlendDestFactorAlpha;         // Blending destination alpha factor
+        int glBlendEquationRGB;             // Blending equation for RGB
+        int glBlendEquationAlpha;           // Blending equation for alpha
+        bool glCustomBlendModeModified;
 
         int framebufferWidth;               // Current framebuffer width
         int framebufferHeight;              // Current framebuffer height
@@ -1777,7 +1788,7 @@ void rlCheckErrors()
 void rlSetBlendMode(int mode)
 {
 #if defined(GRAPHICS_API_OPENGL_33) || defined(GRAPHICS_API_OPENGL_ES2)
-    if (RLGL.State.currentBlendMode != mode)
+    if (RLGL.State.currentBlendMode != mode || (mode >= RL_BLEND_CUSTOM && RLGL.State.glCustomBlendModeModified))
     {
         rlDrawRenderBatch(RLGL.currentBatch);
 
@@ -1790,21 +1801,43 @@ void rlSetBlendMode(int mode)
             case RL_BLEND_SUBTRACT_COLORS: glBlendFunc(GL_ONE, GL_ONE); glBlendEquation(GL_FUNC_SUBTRACT); break;
             case RL_BLEND_ALPHA_PREMULTIPLY: glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA); glBlendEquation(GL_FUNC_ADD); break;
             case RL_BLEND_CUSTOM:
-            {
                 // NOTE: Using GL blend src/dst factors and GL equation configured with rlSetBlendFactors()
                 glBlendFunc(RLGL.State.glBlendSrcFactor, RLGL.State.glBlendDstFactor); glBlendEquation(RLGL.State.glBlendEquation);
-            } break;
+                break;
+            case RL_BLEND_CUSTOM_SEPARATE:
+                glBlendFuncSeparate(RLGL.State.glBlendSrcFactorRGB, RLGL.State.glBlendDestFactorRGB, RLGL.State.glBlendSrcFactorAlpha, RLGL.State.glBlendDestFactorAlpha);
+                break;
             default: break;
         }
 
         RLGL.State.currentBlendMode = mode;
+        RLGL.State.glCustomBlendModeModified = false;
     }
+#endif
+}
+
+void rlSetBlendFactorsSeparate(int srgb, int drgb, int salpha, int dalpha, int ergb, int ealpha) {
+    if (RLGL.State.glBlendSrcFactorRGB == srgb
+        && RLGL.State.glBlendDestFactorRGB == drgb
+        && RLGL.State.glBlendSrcFactorAlpha == salpha
+        && RLGL.State.glBlendDestFactorAlpha == dalpha
+        && RLGL.State.glBlendEquationRGB == ergb
+        && RLGL.State.glBlendEquationAlpha == ealpha) return;
+#if defined(GRAPHICS_API_OPENGL_33) || defined(GRAPHICS_API_OPENGL_ES2)
+    RLGL.State.glBlendSrcFactorRGB = srgb;
+    RLGL.State.glBlendDestFactorRGB = drgb;
+    RLGL.State.glBlendSrcFactorAlpha = salpha;
+    RLGL.State.glBlendDestFactorAlpha = dalpha;
+    RLGL.State.glBlendEquationRGB = ergb;
+    RLGL.State.glBlendEquationAlpha = ealpha;
+    RLGL.State.glCustomBlendModeModified = true;
 #endif
 }
 
 // Set blending mode factor and equation
 void rlSetBlendFactors(int glSrcFactor, int glDstFactor, int glEquation)
 {
+    if (RLGL.State.glBlendSrcFactor == glSrcFactor && RLGL.State.glBlendDstFactor == glDstFactor && RLGL.State.glBlendEquation == glEquation) return;
 #if defined(GRAPHICS_API_OPENGL_33) || defined(GRAPHICS_API_OPENGL_ES2)
     RLGL.State.glBlendSrcFactor = glSrcFactor;
     RLGL.State.glBlendDstFactor = glDstFactor;
@@ -1957,6 +1990,9 @@ void rlglInit(int width, int height)
     TRACELOG(RL_LOG_INFO, "RLGL: Default OpenGL state initialized successfully");
     //----------------------------------------------------------
 #endif
+
+    // ...
+    RLGL.State.glCustomBlendModeModified = false;
 
     // Init state: Color/Depth buffers clear
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);                   // Set clear color (black)
@@ -3224,6 +3260,17 @@ unsigned char *rlReadScreenPixels(int width, int height)
     return imgData;     // NOTE: image data should be freed
 }
 
+unsigned char rlReadScreenPixelAlpha(int x, int y, int height)
+{
+    static unsigned char* r = 0;
+    if (r == 0) {
+        r = RL_MALLOC(16);
+    }
+    y = height - y;
+    glReadPixels(x, y, 1, 1, GL_ALPHA, RL_UNSIGNED_BYTE, r);
+    return r[0];
+}
+
 // Framebuffer management (fbo)
 //-----------------------------------------------------------------------------------------
 // Load a framebuffer to be used for rendering
@@ -3839,6 +3886,13 @@ void rlSetUniformMatrix(int locIndex, Matrix mat)
         mat.m12, mat.m13, mat.m14, mat.m15
     };
     glUniformMatrix4fv(locIndex, 1, false, matfloat);
+#endif
+}
+
+void rlSetUniformMatrixDirectly(int locIndex, float* mat)
+{
+#if defined(GRAPHICS_API_OPENGL_33) || defined(GRAPHICS_API_OPENGL_ES2)
+    glUniformMatrix4fv(locIndex, 1, false, mat);
 #endif
 }
 
