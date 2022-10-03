@@ -1,4 +1,5 @@
 #include "raylib.h"
+#include "luaopt.h"
 
 void pGetWindowPosition(Vector2* v) {
 	*v = GetWindowPosition();
