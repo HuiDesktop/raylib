@@ -54,7 +54,7 @@
     raylib-parser is licensed under an unmodified zlib/libpng license, which is an OSI-certified,
     BSD-like license that allows static linking with closed source software:
 
-    Copyright (c) 2021-2022 Ramon Santamaria (@raysan5)
+    Copyright (c) 2021-2024 Ramon Santamaria (@raysan5)
 
 **********************************************************************************************/
 
@@ -70,7 +70,7 @@
 #define MAX_ALIASES_TO_PARSE      64    // Maximum number of aliases to parse
 #define MAX_ENUMS_TO_PARSE        64    // Maximum number of enums to parse
 #define MAX_CALLBACKS_TO_PARSE    64    // Maximum number of callbacks to parse
-#define MAX_FUNCS_TO_PARSE       512    // Maximum number of functions to parse
+#define MAX_FUNCS_TO_PARSE      1024    // Maximum number of functions to parse
 
 #define MAX_LINE_LENGTH          512    // Maximum length of one line (including comments)
 
@@ -169,9 +169,11 @@ static FunctionInfo *funcs = NULL;
 // Command line variables
 static char apiDefine[32] = { 0 };         // Functions define (i.e. RLAPI for raylib.h, RMDEF for raymath.h, etc.)
 static char truncAfter[32] = { 0 };        // Truncate marker (i.e. "RLGL IMPLEMENTATION" for rlgl.h)
-static char inFileName[512] = { 0 };       // Input file name (required in case of provided through CLI)
-static char outFileName[512] = { 0 };      // Output file name (required for file save/export)
 static int outputFormat = DEFAULT;
+
+// NOTE: Max length depends on OS, in Windows MAX_PATH = 256
+static char inFileName[512] = { 0 };        // Input file name (required in case of drag & drop over executable)
+static char outFileName[512] = { 0 };       // Output file name (required for file save/export)
 
 //----------------------------------------------------------------------------------
 // Module Functions Declaration
@@ -206,6 +208,12 @@ int main(int argc, char* argv[])
 
     int length = 0;
     char *buffer = LoadFileText(inFileName, &length);
+
+    if (buffer == NULL)
+    {
+        printf("Could not read input file: %s\n", inFileName);
+        return 1;
+    }
 
     // Preprocess buffer to get separate lines
     // NOTE: GetTextLines() also removes leading spaces/tabs
@@ -439,11 +447,11 @@ int main(int argc, char* argv[])
             {
                 if (isFloat)
                 {
-                    defines[defineIndex].type = linePtr[j-1] == 'f' ? FLOAT : DOUBLE;
+                    defines[defineIndex].type = (linePtr[j-1] == 'f')? FLOAT : DOUBLE;
                 }
                 else
                 {
-                    defines[defineIndex].type = linePtr[j-1] == 'L' ? LONG : INT;
+                    defines[defineIndex].type = (linePtr[j-1] == 'L')? LONG : INT;
                     defines[defineIndex].isHex = isHex;
                 }
             }
@@ -493,7 +501,7 @@ int main(int argc, char* argv[])
                     (ch == '/') ||
                     (ch == ' ') ||
                     (ch == '\t')) continue;
-                
+
                 // Read number operand
                 else if (isdigit(ch))
                 {
@@ -526,9 +534,9 @@ int main(int argc, char* argv[])
                     {
                         // Found a valid number -> update largestType
                         int numberType;
-                        if (isFloat) numberType = valuePtr[c - 1] == 'f' ? FLOAT_MATH : DOUBLE_MATH;
-                        else numberType = valuePtr[c - 1] == 'L' ? LONG_MATH : INT_MATH;
-                        
+                        if (isFloat) numberType = (valuePtr[c - 1] == 'f')? FLOAT_MATH : DOUBLE_MATH;
+                        else numberType = (valuePtr[c - 1] == 'L')? LONG_MATH : INT_MATH;
+
                         if (numberType > largestType) largestType = numberType;
                     }
                     else
@@ -648,7 +656,7 @@ int main(int argc, char* argv[])
                     {
                         if (structs[i].fieldName[originalIndex][c] == ',') additionalFields++;
                     }
-                    
+
                     if (additionalFields > 0)
                     {
                         int originalLength = -1;
@@ -696,7 +704,7 @@ int main(int argc, char* argv[])
                     {
                         if (structs[i].fieldType[originalIndex][c] == ',') additionalFields++;
                     }
-                    
+
                     if (additionalFields > 0)
                     {
                         // Copy original name to last additional field
@@ -1067,7 +1075,7 @@ static void ShowCommandLineInfo(void)
     printf("//                                                                              //\n");
     printf("// more info and bugs-report: github.com/raysan5/raylib/parser                  //\n");
     printf("//                                                                              //\n");
-    printf("// Copyright (c) 2021-2022 Ramon Santamaria (@raysan5)                          //\n");
+    printf("// Copyright (c) 2021-2024 Ramon Santamaria (@raysan5)                          //\n");
     printf("//                                                                              //\n");
     printf("//////////////////////////////////////////////////////////////////////////////////\n\n");
 

@@ -7,7 +7,7 @@
 *   Example licensed under an unmodified zlib/libpng license, which is an OSI-certified,
 *   BSD-like license that allows static linking with closed source software
 *
-*   Copyright (c) 2022 Ramon Santamaria (@raysan5)
+*   Copyright (c) 2022-2024 Ramon Santamaria (@raysan5)
 *
 ********************************************************************************************/
 
@@ -52,10 +52,16 @@ int main(void)
     // Set bilinear scale filter for better font scaling
     SetTextureFilter(font.texture, TEXTURE_FILTER_BILINEAR);
 
+    SetTextLineSpacing(54);         // Set line spacing for multiline text (when line breaks are included '\n')
+
     // Free codepoints, atlas has already been generated
     free(codepointsNoDups);
 
     bool showFontAtlas = false;
+
+    int codepointSize = 0;
+    int codepoint = 0;
+    char *ptr = text;
 
     SetTargetFPS(60);               // Set our game to run at 60 frames-per-second
     //--------------------------------------------------------------------------------------
@@ -66,6 +72,20 @@ int main(void)
         // Update
         //----------------------------------------------------------------------------------
         if (IsKeyPressed(KEY_SPACE)) showFontAtlas = !showFontAtlas;
+
+        // Testing code: getting next and previous codepoints on provided text
+        if (IsKeyPressed(KEY_RIGHT))
+        {
+            // Get next codepoint in string and move pointer
+            codepoint = GetCodepointNext(ptr, &codepointSize);
+            ptr += codepointSize;
+        }
+        else if (IsKeyPressed(KEY_LEFT))
+        {
+            // Get previous codepoint in string and move pointer
+            codepoint = GetCodepointPrevious(ptr, &codepointSize);
+            ptr -= codepointSize;
+        }
         //----------------------------------------------------------------------------------
 
         // Draw

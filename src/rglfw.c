@@ -7,7 +7,7 @@
 *
 *   LICENSE: zlib/libpng
 *
-*   Copyright (c) 2017-2022 Ramon Santamaria (@raysan5)
+*   Copyright (c) 2017-2024 Ramon Santamaria (@raysan5)
 *
 *   This software is provided "as-is", without any express or implied warranty. In no event
 *   will the authors be held liable for any damages arising from the use of this software.
@@ -36,6 +36,18 @@
 // _GLFW_COCOA      to use the Cocoa frameworks
 // _GLFW_OSMESA     to use the OSMesa API (headless and non-interactive)
 // _GLFW_MIR        experimental, not supported at this moment
+
+//----------------------------------------------------------------------------------
+// Feature Test Macros required for this module
+//----------------------------------------------------------------------------------
+#if (defined(__linux__) || defined(PLATFORM_WEB)) && (_POSIX_C_SOURCE < 199309L)
+    #undef _POSIX_C_SOURCE
+    #define _POSIX_C_SOURCE 199309L // Required for: CLOCK_MONOTONIC if compiled with c99 without gnu ext.
+#endif
+#if (defined(__linux__) || defined(PLATFORM_WEB)) && !defined(_GNU_SOURCE)
+    #undef _GNU_SOURCE
+    #define _GNU_SOURCE // Required for: ppoll if compiled with c99 without gnu ext.
+#endif
 
 #if defined(_WIN32) || defined(__CYGWIN__)
     #define _GLFW_WIN32
@@ -75,7 +87,7 @@
     #include "external/glfw/src/win32_time.c"
     #include "external/glfw/src/win32_thread.c"
     #include "external/glfw/src/wgl_context.c"
-    
+
     #include "external/glfw/src/egl_context.c"
     #include "external/glfw/src/osmesa_context.c"
 #endif
@@ -87,10 +99,10 @@
     #include "external/glfw/src/posix_poll.c"
     #include "external/glfw/src/linux_joystick.c"
     #include "external/glfw/src/xkb_unicode.c"
-    
+
     #include "external/glfw/src/egl_context.c"
     #include "external/glfw/src/osmesa_context.c"
-    
+
     #if defined(_GLFW_WAYLAND)
         #include "external/glfw/src/wl_init.c"
         #include "external/glfw/src/wl_monitor.c"
@@ -108,9 +120,10 @@
     #include "external/glfw/src/posix_module.c"
     #include "external/glfw/src/posix_thread.c"
     #include "external/glfw/src/posix_time.c"
+    #include "external/glfw/src/posix_poll.c"
     #include "external/glfw/src/null_joystick.c"
     #include "external/glfw/src/xkb_unicode.c"
-    
+
     #include "external/glfw/src/x11_init.c"
     #include "external/glfw/src/x11_monitor.c"
     #include "external/glfw/src/x11_window.c"
@@ -129,7 +142,7 @@
     #include "external/glfw/src/cocoa_window.m"
     #include "external/glfw/src/cocoa_time.c"
     #include "external/glfw/src/nsgl_context.m"
-    
+
     #include "external/glfw/src/egl_context.c"
     #include "external/glfw/src/osmesa_context.c"
 #endif
